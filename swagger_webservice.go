@@ -14,6 +14,15 @@ import (
 	"strings"
 )
 
+// const
+const (
+	TypeString  = "string"
+	TypeNumber  = "number"
+	TypeInteger = "integer"
+	TypeBoolean = "boolean"
+	TypeArray   = "array"
+)
+
 type SwaggerService struct {
 	config            Config
 	apiDeclarationMap *ApiDeclarationList
@@ -225,7 +234,7 @@ func composeResponses(route restful.Route, decl *APIDefinition, config *Config) 
 			message.Schema = &Items{}
 			st := reflect.TypeOf(each.Model)
 			isCollection, st := detectCollectionType(st)
-			modelName := modelBuilder{Config:config}.keyFrom(st)
+			modelName := modelBuilder{Config: config}.keyFrom(st)
 			if !isCollection {
 				if st.Kind() == reflect.Struct {
 					message.Schema.Ref = getModelName(modelName)
@@ -235,13 +244,13 @@ func composeResponses(route restful.Route, decl *APIDefinition, config *Config) 
 					if st.Kind() == reflect.Struct {
 						message.Schema.Type = "object"
 						message.Schema.AdditionalProperties = &Items{}
-						modelName = modelBuilder{Config:config}.keyFrom(st)
+						modelName = modelBuilder{Config: config}.keyFrom(st)
 						message.Schema.AdditionalProperties.Ref = getModelName(modelName)
 						modelBuilder{Definitions: &decl.Definitions, Config: config}.addModel(st, "")
 					} else {
 						message.Schema.Type = "object"
 						message.Schema.AdditionalProperties = &Items{}
-						modelName = modelBuilder{Config:config}.keyFrom(st)
+						modelName = modelBuilder{Config: config}.keyFrom(st)
 						message.Schema.AdditionalProperties.Type = getOtherName(modelName)
 						if getOtherName(modelName) == "integer" || getOtherName(modelName) == "number" {
 							message.Schema.AdditionalProperties.Format = getFormat(modelName)
@@ -269,9 +278,49 @@ func composeResponses(route restful.Route, decl *APIDefinition, config *Config) 
 				}
 			}
 		}
+		headers := map[string]*Items{}
+		for k, h := range each.Headers {
+			items := Items{
+				Description: h.Description,
+			}
+			switch h.Items.Type {
+			case TypeString, TypeNumber, TypeInteger, TypeBoolean, TypeArray:
+				items.Type = h.Items.Type
+			default:
+				continue
+			}
+			if h.Items.Format != "" {
+				items.Format = h.Format
+			}
+			if h.Items.Type == TypeArray {
+				items.Items = getItems(h.Items.Items)
+			}
+			headers[k] = &items
+		}
+		message.Headers = headers
 		response[strconv.Itoa(code)] = message
 	}
 	return response
+}
+
+func getItems(restfulItems *restful.Items) *Items {
+	if restfulItems == nil {
+		return nil
+	}
+	items := Items{}
+	switch restfulItems.Type {
+	case TypeString, TypeNumber, TypeInteger, TypeBoolean, TypeArray:
+		items.Type = restfulItems.Type
+	default:
+		return nil
+	}
+	if restfulItems.Format != "" {
+		items.Format = restfulItems.Format
+	}
+	if restfulItems.Type == TypeArray {
+		items.Items = getItems(restfulItems.Items)
+	}
+	return &items
 }
 
 func (sws SwaggerService) addModelsFromRouteTo(route restful.Route, decl *APIDefinition) {
@@ -405,7 +454,7 @@ func optimizeParameter(item *Items, param restful.ParameterData, readSample inte
 	if param.Kind == 2 {
 		if reflect.TypeOf(readSample).Kind() == reflect.Slice || reflect.TypeOf(readSample).Kind() == reflect.Array {
 			item.Type = "array"
-			dataType := modelBuilder{Config:config}.keyFrom(reflect.TypeOf(readSample).Elem())
+			dataType := modelBuilder{Config: config}.keyFrom(reflect.TypeOf(readSample).Elem())
 			item.Items = &Items{Ref: getModelName(dataType)}
 		} else {
 			item.Type = nil
