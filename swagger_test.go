@@ -112,6 +112,30 @@ type Responses struct {
 func TestComposeResponses(t *testing.T) {
 	responseErrors := map[int]restful.ResponseError{}
 	responseErrors[400] = restful.ResponseError{Code: 400, Message: "Bad Request", Model: TestItem{}}
+	responseErrors[200] = restful.ResponseError{
+		Headers: map[string]restful.Header{
+			"X-Test-Integer": {
+				Items: &restful.Items{
+					Type:   "integer",
+					Format: "int32",
+				},
+				Description: "test integer header",
+			},
+			"X-Test-Array": {
+				Items: &restful.Items{
+					Type: "array",
+					Items: &restful.Items{
+						Type: "array",
+						Items: &restful.Items{
+							Format: "int64",
+							Type:   "integer",
+						},
+					},
+				},
+				Description: "test array header",
+			},
+		},
+	}
 	route := restful.Route{ResponseErrors: responseErrors}
 	decl := new(APIDefinition)
 	decl.Definitions = map[string]*Items{}
@@ -121,6 +145,12 @@ func TestComposeResponses(t *testing.T) {
 	}
 	if msgs["400"].Schema.Ref != "#/definitions/TestItem" {
 		t.Errorf("got %s want #/definitions/TestItem", msgs["400"].Schema.Ref)
+	}
+	if msgs["200"].Headers["X-Test-Integer"].Type != "integer" {
+		t.Errorf("got %s want integer", msgs["200"].Headers["X-Test-Integer"].Type)
+	}
+	if msgs["200"].Headers["X-Test-Array"].Items.Items.Format != "int64" {
+		t.Errorf("got %s want int64", msgs["200"].Headers["X-Test-Array"].Items.Items.Format)
 	}
 }
 

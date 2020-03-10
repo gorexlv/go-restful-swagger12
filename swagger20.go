@@ -39,8 +39,9 @@ type Parameters []*Items
 
 // Response represents the response object in an OpenAPI spec.
 type Response struct {
-	Description string `yaml:"description" json:"description"`
-	Schema      *Items `yaml:"schema,omitempty" json:"schema,omitempty"`
+	Description string            `yaml:"description" json:"description"`
+	Schema      *Items            `yaml:"schema,omitempty" json:"schema,omitempty"`
+	Headers     map[string]*Items `yaml:"headers,omitempty" json:"headers,omitempty"`
 }
 
 // Endpoint represents an endpoint for a path in an OpenAPI spec.
