@@ -1,4 +1,4 @@
-module github.com/gorexlv/go-restful-swagger12/v3
+module github.com/gorexlv/go-restful-swagger12
 
 go 1.14
 
