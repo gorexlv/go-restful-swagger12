@@ -4,7 +4,7 @@ package swagger
 // Use of this source code is governed by a license
 // that can be found in the LICENSE file.
 
-import "github.com/emicklei/go-restful"
+import "github.com/emicklei/go-restful/v3"
 
 type orderedRouteMap struct {
 	elements map[string][]restful.Route
