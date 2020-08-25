@@ -3,7 +3,7 @@ package swagger
 import (
 	"testing"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 // go test -v -test.run TestOrderedRouteMap ...swagger
