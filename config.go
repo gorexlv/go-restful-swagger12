@@ -27,6 +27,12 @@ type Config struct {
 	SwaggerPath string
 	// [optional] location of folder containing Swagger HTML5 application index.html
 	SwaggerFilePath string
+	// [optional] location of schema file
+	OutFilePath string
+	//是否开启显示契约的服务，默认不开启
+	OpenService bool
+	//写入本地磁盘的格式，json or yaml 默认yaml
+	FileStyle string
 	// api listing is constructed from this list of restful WebServices.
 	WebServices []*restful.WebService
 	// will serve all static content (scripts,pages,images)

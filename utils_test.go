@@ -4,31 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
-
-func testJsonFromStructWithConfig(t *testing.T, sample interface{}, expectedJson string, config *Config) bool {
-	m := modelsFromStructWithConfig(sample, config)
-	data, _ := json.MarshalIndent(m, " ", " ")
-	return compareJson(t, string(data), expectedJson)
-}
-
-func modelsFromStructWithConfig(sample interface{}, config *Config) *ModelList {
-	models := new(ModelList)
-	builder := modelBuilder{Models: models, Config: config}
-	builder.addModelFrom(sample)
-	return models
-}
-
-func testJsonFromStruct(t *testing.T, sample interface{}, expectedJson string) bool {
-	return testJsonFromStructWithConfig(t, sample, expectedJson, &Config{})
-}
-
-func modelsFromStruct(sample interface{}) *ModelList {
-	return modelsFromStructWithConfig(sample, &Config{})
-}
 
 func compareJson(t *testing.T, actualJsonAsString string, expectedJsonAsString string) bool {
 	success := false
@@ -61,21 +42,6 @@ func compareJson(t *testing.T, actualJsonAsString string, expectedJsonAsString s
 	return true
 }
 
-func indexOfNonMatchingLine(actual, expected string) int {
-	a := strings.Split(actual, "\n")
-	e := strings.Split(expected, "\n")
-	size := len(a)
-	if len(e) < len(a) {
-		size = len(e)
-	}
-	for i := 0; i < size; i++ {
-		if a[i] != e[i] {
-			return i
-		}
-	}
-	return -1
-}
-
 func withLineNumbers(content string) string {
 	var buffer bytes.Buffer
 	lines := strings.Split(content, "\n")
@@ -83,4 +49,38 @@ func withLineNumbers(content string) string {
 		buffer.WriteString(fmt.Sprintf("%d:%s\n", i, each))
 	}
 	return buffer.String()
+}
+func testFromStruct(t *testing.T, sample interface{}, expectedJson string) bool {
+	return testJsonFromStructWithConfig(t, sample, expectedJson, &Config{})
+}
+
+func testJsonFromStructWithConfig(t *testing.T, sample interface{}, expectedJson string, config *Config) bool {
+	m := modelsFromStructWithConfig(sample, config)
+	data, _ := json.MarshalIndent(m, " ", " ")
+	return compareJson(t, string(data), expectedJson)
+}
+
+func modelsFromStructWithConfig(sample interface{}, config *Config) map[string]*Items {
+	models := map[string]*Items{}
+	builder := modelBuilder{Definitions: &models, Config: config}
+	builder.addModel(reflect.TypeOf(sample), "")
+	return models
+}
+func ListDir(dirPth string, suffix string) (files []string, err error) {
+	files = make([]string, 0, 10)
+	dir, err := ioutil.ReadDir(dirPth)
+	if err != nil {
+		return nil, err
+	}
+	PthSep := string(os.PathSeparator)
+	suffix = strings.ToUpper(suffix)
+	for _, fi := range dir {
+		if fi.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(strings.ToUpper(fi.Name()), suffix) {
+			files = append(files, dirPth+PthSep+fi.Name())
+		}
+	}
+	return files, nil
 }

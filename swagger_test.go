@@ -2,209 +2,54 @@ package swagger
 
 import (
 	"encoding/json"
+<<<<<<< HEAD
 	"testing"
 
 	"github.com/emicklei/go-restful-swagger12/test_package"
 	"github.com/emicklei/go-restful/v3"
+=======
+	"github.com/emicklei/go-restful"
+	"os"
+	"strings"
+	"testing"
+>>>>>>> swagger20/master
 )
 
-func TestInfoStruct_Issue231(t *testing.T) {
+//测试Info
+func TestInfoStruct(t *testing.T) {
 	config := Config{
 		Info: Info{
-			Title:             "Title",
-			Description:       "Description",
-			TermsOfServiceUrl: "http://example.com",
-			Contact:           "example@example.com",
-			License:           "License",
-			LicenseUrl:        "http://example.com/license.txt",
+			Title:       "Title",
+			Description: "Description",
+			Version:     "Version",
 		},
 	}
 	sws := newSwaggerService(config)
-	str, err := json.MarshalIndent(sws.produceListing(), "", "    ")
+	listing := APIDefinition{
+		Swagger:  swaggerVersion,
+		Info:     sws.config.Info,
+		BasePath: "",
+		Paths:    nil,
+	}
+	str, err := json.MarshalIndent(listing, "", "    ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	compareJson(t, string(str), `
 	{
-		"apiVersion": "",
-		"swaggerVersion": "1.2",
-		"apis": null,
+		"swagger": "2.0",
+		"paths": null,
+		"basePath": "",
 		"info": {
-			"title": "Title",
-			"description": "Description",
-			"termsOfServiceUrl": "http://example.com",
-			"contact": "example@example.com",
-			"license": "License",
-			"licenseUrl": "http://example.com/license.txt"
+			"title": 	"Title",
+			"description": 	"Description",
+			"version":	"Version"
 		}
 	}
 	`)
 }
 
-// go test -v -test.run TestThatMultiplePathsOnRootAreHandled ...swagger
-func TestThatMultiplePathsOnRootAreHandled(t *testing.T) {
-	ws1 := new(restful.WebService)
-	ws1.Route(ws1.GET("/_ping").To(dummy))
-	ws1.Route(ws1.GET("/version").To(dummy))
-
-	cfg := Config{
-		WebServicesUrl: "http://here.com",
-		ApiPath:        "/apipath",
-		WebServices:    []*restful.WebService{ws1},
-	}
-	sws := newSwaggerService(cfg)
-	decl := sws.composeDeclaration(ws1, "/")
-	if got, want := len(decl.Apis), 2; got != want {
-		t.Errorf("got %v want %v", got, want)
-	}
-}
-
-func TestWriteSamples(t *testing.T) {
-	ws1 := new(restful.WebService)
-	ws1.Route(ws1.GET("/object").To(dummy).Writes(test_package.TestStruct{}))
-	ws1.Route(ws1.GET("/array").To(dummy).Writes([]test_package.TestStruct{}))
-	ws1.Route(ws1.GET("/object_and_array").To(dummy).Writes(struct{ Abc test_package.TestStruct }{}))
-
-	cfg := Config{
-		WebServicesUrl: "http://here.com",
-		ApiPath:        "/apipath",
-		WebServices:    []*restful.WebService{ws1},
-	}
-	sws := newSwaggerService(cfg)
-
-	decl := sws.composeDeclaration(ws1, "/")
-
-	str, err := json.MarshalIndent(decl.Apis, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	compareJson(t, string(str), `
-	[
-		{
-			"path": "/object",
-			"description": "",
-			"operations": [
-				{
-					"type": "test_package.TestStruct",
-					"method": "GET",
-					"nickname": "dummy",
-					"parameters": []
-				}
-			]
-		},
-		{
-			"path": "/array",
-			"description": "",
-			"operations": [
-				{
-					"type": "array",
-					"items": {
-						"$ref": "test_package.TestStruct"
-					},
-					"method": "GET",
-					"nickname": "dummy",
-					"parameters": []
-				}
-			]
-		},
-		{
-			"path": "/object_and_array",
-			"description": "",
-			"operations": [
-				{
-					"type": "struct { Abc test_package.TestStruct }",
-					"method": "GET",
-					"nickname": "dummy",
-					"parameters": []
-				}
-			]
-		}
-    ]`)
-
-	str, err = json.MarshalIndent(decl.Models, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	compareJson(t, string(str), `
-	{
-		"test_package.TestStruct": {
-			"id": "test_package.TestStruct",
-			"required": [
-				"TestField"
-			],
-			"properties": {
-				"TestField": {
-					"type": "string"
-				}
-			}
-		},
-		"||test_package.TestStruct": {
-			"id": "||test_package.TestStruct",
-			"properties": {}
-		},
-		"struct { Abc test_package.TestStruct }": {
-			"id": "struct { Abc test_package.TestStruct }",
-			"required": [
-				"Abc"
-			],
-			"properties": {
-				"Abc": {
-					"$ref": "test_package.TestStruct"
-				}
-			}
-		}
-    }`)
-}
-
-func TestRoutesWithCommonPart(t *testing.T) {
-	ws1 := new(restful.WebService)
-	ws1.Path("/")
-	ws1.Route(ws1.GET("/foobar").To(dummy).Writes(test_package.TestStruct{}))
-	ws1.Route(ws1.HEAD("/foobar").To(dummy).Writes(test_package.TestStruct{}))
-	ws1.Route(ws1.GET("/foo").To(dummy).Writes([]test_package.TestStruct{}))
-	ws1.Route(ws1.HEAD("/foo").To(dummy).Writes(test_package.TestStruct{}))
-
-	cfg := Config{
-		WebServicesUrl: "http://here.com",
-		ApiPath:        "/apipath",
-		WebServices:    []*restful.WebService{ws1},
-	}
-	sws := newSwaggerService(cfg)
-
-	decl := sws.composeDeclaration(ws1, "/foo")
-
-	str, err := json.MarshalIndent(decl.Apis, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	compareJson(t, string(str), `[
-		{
-			"path": "/foo",
-			"description": "",
-			"operations": [
-				{
-					"type": "array",
-					"items": {
-						"$ref": "test_package.TestStruct"
-					},
-					"method": "GET",
-					"nickname": "dummy",
-					"parameters": []
-				},
-				{
-					"type": "test_package.TestStruct",
-					"method": "HEAD",
-					"nickname": "dummy",
-					"parameters": []
-				}
-			]
-		}
-    ]`)
-}
-
-// go test -v -test.run TestServiceToApi ...swagger
+//测试Api
 func TestServiceToApi(t *testing.T) {
 	ws := new(restful.WebService)
 	ws.Path("/tests")
@@ -228,91 +73,234 @@ func TestServiceToApi(t *testing.T) {
 	}
 	sws := newSwaggerService(cfg)
 	decl := sws.composeDeclaration(ws, "/tests")
-	// checks
-	if decl.ApiVersion != "1.2.3" {
-		t.Errorf("got %v want %v", decl.ApiVersion, "1.2.3")
+
+	if decl.Info.Version != "1.2.3" {
+		t.Errorf("got %v want %v", decl.Swagger, "1.2.3")
 	}
-	if decl.BasePath != "http://here.com" {
-		t.Errorf("got %v want %v", decl.BasePath, "http://here.com")
+	if decl.BasePath != "/tests" {
+		t.Errorf("got %v want %v", decl.BasePath, "/tests")
 	}
-	if len(decl.Apis) != 4 {
-		t.Errorf("got %v want %v", len(decl.Apis), 4)
+	if len(decl.Paths) != 4 {
+		t.Errorf("got %v want %v", len(decl.Paths), 4)
 	}
 	pathOrder := ""
-	for _, each := range decl.Apis {
-		pathOrder += each.Path
-		for _, other := range each.Operations {
-			pathOrder += other.Method
-		}
+	for path, _ := range decl.Paths {
+		pathOrder += path
 	}
 
-	if pathOrder != "/tests/aGETDELETE/tests/bPUTPOST/tests/cPOSTPUT/tests/dDELETEGET" {
-		t.Errorf("got %v want %v", pathOrder, "see test source")
+	if len(pathOrder) != 8 {
+		t.Errorf("got %v want %v", len(pathOrder), 8)
 	}
 }
 
-func dummy(i *restful.Request, o *restful.Response) {}
+func dummy(req *restful.Request, res *restful.Response) {}
 
-// go test -v -test.run TestIssue78 ...swagger
-type Response struct {
-	Code  int
-	Users *[]User
-	Items *[]TestItem
+type sample struct {
+	id       string `swagger:"required"` // TODO
+	items    []item
+	rootItem item `json:"root" description:"root desc"`
 }
-type User struct {
-	Id, Name string
+type item struct {
+	itemName string `json:"name"`
 }
 type TestItem struct {
 	Id, Name string
 }
+type User struct {
+	Id, Name string
+}
+type Responses struct {
+	Code  int
+	Users *[]User
+	Items *[]TestItem
+}
 
-// clear && go test -v -test.run TestComposeResponseMessages ...swagger
-func TestComposeResponseMessages(t *testing.T) {
+//测试responses
+func TestComposeResponses(t *testing.T) {
 	responseErrors := map[int]restful.ResponseError{}
 	responseErrors[400] = restful.ResponseError{Code: 400, Message: "Bad Request", Model: TestItem{}}
+	responseErrors[200] = restful.ResponseError{
+		Headers: map[string]restful.Header{
+			"X-Test-Integer": {
+				Items: &restful.Items{
+					Type:   "integer",
+					Format: "int32",
+				},
+				Description: "test integer header",
+			},
+			"X-Test-Array": {
+				Items: &restful.Items{
+					Type: "array",
+					Items: &restful.Items{
+						Type: "array",
+						Items: &restful.Items{
+							Format: "int64",
+							Type:   "integer",
+						},
+					},
+				},
+				Description: "test array header",
+			},
+		},
+	}
 	route := restful.Route{ResponseErrors: responseErrors}
-	decl := new(ApiDeclaration)
-	decl.Models = ModelList{}
-	msgs := composeResponseMessages(route, decl, &Config{})
-	if msgs[0].ResponseModel != "swagger.TestItem" {
-		t.Errorf("got %s want swagger.TestItem", msgs[0].ResponseModel)
+	decl := new(APIDefinition)
+	decl.Definitions = map[string]*Items{}
+	msgs := composeResponses(route, decl, &Config{})
+	if msgs["400"].Description != "Bad Request" {
+		t.Errorf("got %s want Bad Request", msgs["400"].Description)
+	}
+	if msgs["400"].Schema.Ref != "#/definitions/TestItem" {
+		t.Errorf("got %s want #/definitions/TestItem", msgs["400"].Schema.Ref)
+	}
+	if msgs["200"].Headers["X-Test-Integer"].Type != "integer" {
+		t.Errorf("got %s want integer", msgs["200"].Headers["X-Test-Integer"].Type)
+	}
+	if msgs["200"].Headers["X-Test-Array"].Items.Items.Format != "int64" {
+		t.Errorf("got %s want int64", msgs["200"].Headers["X-Test-Array"].Items.Items.Format)
 	}
 }
 
-func TestIssue78(t *testing.T) {
+//测试Definitions
+func TestAddModel(t *testing.T) {
 	sws := newSwaggerService(Config{})
-	models := new(ModelList)
-	sws.addModelFromSampleTo(&Operation{}, true, Response{Items: &[]TestItem{}}, models)
-	model, ok := models.At("swagger.Response")
+	api := APIDefinition{
+		Definitions: map[string]*Items{}}
+
+	sws.addModelFromSampleTo(Responses{Items: &[]TestItem{}}, &api.Definitions)
+	model, ok := atMap("Responses", &api.Definitions)
 	if !ok {
-		t.Fatal("missing response model")
+		t.Fatal("missing Responses model")
 	}
-	if "swagger.Response" != model.Id {
-		t.Fatal("wrong model id:" + model.Id)
+	if model.Type != "object" {
+		t.Fatal("wrong model type  " + model.Type.(string))
 	}
-	code, ok := model.Properties.At("Code")
-	if !ok {
+	str := ""
+	for key, _ := range model.Properties {
+		str = str + key
+	}
+	if !strings.Contains(str, "Code") {
 		t.Fatal("missing code")
 	}
-	if "integer" != *code.Type {
-		t.Fatal("wrong code type:" + *code.Type)
+	if !strings.Contains(str, "Users") {
+		t.Fatal("missing User")
 	}
-	items, ok := model.Properties.At("Items")
-	if !ok {
-		t.Fatal("missing items")
+	if !strings.Contains(str, "Items") {
+		t.Fatal("missing Items")
 	}
-	if "array" != *items.Type {
-		t.Fatal("wrong items type:" + *items.Type)
+	if model.Properties["Code"].Type != "integer" {
+		t.Fatal("wrong code type:" + model.Properties["Code"].Type.(string))
 	}
-	items_items := items.Items
-	if items_items == nil {
-		t.Fatal("missing items->items")
+	if model.Properties["Users"].Type != "array" {
+		t.Fatal("wrong Users type:" + model.Properties["Users"].Type.(string))
 	}
-	ref := items_items.Ref
-	if ref == nil {
-		t.Fatal("missing $ref")
+	if model.Properties["Items"].Type != "array" {
+		t.Fatal("wrong Items type:" + model.Properties["Items"].Type.(string))
 	}
-	if *ref != "swagger.TestItem" {
-		t.Fatal("wrong $ref:" + *ref)
+	if model.Properties["Users"].Items == nil {
+		t.Fatal("missing Users items")
+	}
+	if model.Properties["Items"].Items == nil {
+		t.Fatal("missing Items items")
+	}
+	if model.Properties["Users"].Items.Ref != "#/definitions/User" {
+		t.Fatal("wrong Users Ref:" + model.Properties["Users"].Items.Ref)
+	}
+	if model.Properties["Items"].Items.Ref != "#/definitions/TestItem" {
+		t.Fatal("wrong Items Ref:" + model.Properties["Items"].Items.Ref)
+	}
+
+	model1, ok1 := atMap("User", &api.Definitions)
+	if !ok1 {
+		t.Fatal("missing User model")
+	}
+	if model1.Type != "object" {
+		t.Fatal("wrong model User type  " + model1.Type.(string))
+	}
+	str1 := ""
+	for key, _ := range model1.Properties {
+		str1 = str1 + key
+	}
+	if !strings.Contains(str1, "Id") {
+		t.Fatal("missing User Id")
+	}
+	if !strings.Contains(str1, "Name") {
+		t.Fatal("missing User Name")
+	}
+	if model1.Properties["Id"].Type != "string" {
+		t.Fatal("wrong User Id type:" + model1.Properties["Id"].Type.(string))
+	}
+	if model1.Properties["Name"].Type != "string" {
+		t.Fatal("wrong User Name type:" + model1.Properties["Name"].Type.(string))
+	}
+
+	model2, ok2 := atMap("TestItem", &api.Definitions)
+	if !ok2 {
+		t.Fatal("missing TestItem model")
+	}
+	if model2.Type != "object" {
+		t.Fatal("wrong model TestItem type  " + model2.Type.(string))
+	}
+	str2 := ""
+	for key, _ := range model2.Properties {
+		str2 = str2 + key
+	}
+	if !strings.Contains(str2, "Id") {
+		t.Fatal("missing TestItem Id")
+	}
+	if !strings.Contains(str2, "Name") {
+		t.Fatal("missing TestItem Name")
+	}
+	if model2.Properties["Id"].Type != "string" {
+		t.Fatal("wrong TestItem Id type:" + model2.Properties["Id"].Type.(string))
+	}
+	if model2.Properties["Name"].Type != "string" {
+		t.Fatal("wrong TestItem Name type:" + model2.Properties["Name"].Type.(string))
+	}
+}
+
+//测试将openapi协议以json形式保存在本地
+func TestWriteJsonToFile(t *testing.T) {
+	//测试前请先设定环境变量
+	val := os.Getenv("SWAGGERFILEPATH")
+	os.Remove(val)
+	os.Mkdir(val, 0777)
+	ws := new(restful.WebService)
+	ws.Path("/file")
+	ws.Consumes(restful.MIME_JSON)
+	ws.Produces(restful.MIME_JSON)
+	ws.Route(ws.GET("/write").To(dummy).Writes(sample{}))
+	cfg := Config{
+		WebServices: []*restful.WebService{ws},
+		FileStyle:   "json",
+		OutFilePath: val,
+	}
+	sws := newSwaggerService(cfg)
+	sws.WriteToFile()
+	files, err := ListDir(val, "json")
+	if err != nil || len(files) != 1 {
+		t.Fatal("No local json file was generated")
+	}
+}
+
+//测试将openapi协议以yaml形式保存在本地
+func TestWriteYamlToFile(t *testing.T) {
+	val := os.Getenv("SWAGGERFILEPATH")
+	os.RemoveAll(val)
+	os.Mkdir(val, 0777)
+	ws := new(restful.WebService)
+	ws.Path("/file")
+	ws.Consumes(restful.MIME_JSON)
+	ws.Produces(restful.MIME_JSON)
+	ws.Route(ws.GET("/write").To(dummy).Writes(sample{}))
+	cfg := Config{
+		WebServices: []*restful.WebService{ws},
+		OutFilePath: val,
+	}
+	sws := newSwaggerService(cfg)
+	sws.WriteToFile()
+	files, err := ListDir(val, "yaml")
+	if err != nil || len(files) != 1 {
+		t.Fatal("No local yaml file was generated")
 	}
 }

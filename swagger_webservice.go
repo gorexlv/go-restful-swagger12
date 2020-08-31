@@ -1,16 +1,28 @@
 package swagger
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/emicklei/go-restful/v3"
 	// "github.com/emicklei/hopwatch"
+	"github.com/emicklei/go-restful/v3/log"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+)
 
-	"github.com/emicklei/go-restful/v3/log"
+// const
+const (
+	TypeString  = "string"
+	TypeNumber  = "number"
+	TypeInteger = "integer"
+	TypeBoolean = "boolean"
+	TypeArray   = "array"
 )
 
 type SwaggerService struct {
@@ -28,18 +40,7 @@ func newSwaggerService(config Config) *SwaggerService {
 		rootPath := each.RootPath()
 		// skip the api service itself
 		if rootPath != config.ApiPath {
-			if rootPath == "" || rootPath == "/" {
-				// use routes
-				for _, route := range each.Routes() {
-					entry := staticPathFromRoute(route)
-					_, exists := sws.apiDeclarationMap.At(entry)
-					if !exists {
-						sws.apiDeclarationMap.Put(entry, sws.composeDeclaration(each, entry))
-					}
-				}
-			} else { // use root path
-				sws.apiDeclarationMap.Put(each.RootPath(), sws.composeDeclaration(each, each.RootPath()))
-			}
+			sws.apiDeclarationMap.Put(each.RootPath(), sws.composeDeclaration(each, each.RootPath()))
 		}
 	}
 
@@ -61,61 +62,88 @@ var LogInfo = func(format string, v ...interface{}) {
 func InstallSwaggerService(aSwaggerConfig Config) {
 	RegisterSwaggerService(aSwaggerConfig, restful.DefaultContainer)
 }
+func (sws SwaggerService) WriteToFile() {
+	for _, listing := range sws.apiDeclarationMap.List {
+		if sws.config.FileStyle == "json" {
+			list, err := json.Marshal(listing)
+			if err == nil {
+				err1 := ioutil.WriteFile(sws.config.OutFilePath, list, 0644)
+				if err1 != nil {
+					log.Printf("fail to write to file", err1)
+				}
+			}
+		} else {
+			list, err := yaml.Marshal(listing)
+			if err == nil {
+				err1 := ioutil.WriteFile(sws.config.OutFilePath, list, 0644)
+				if err1 != nil {
+					log.Printf("fail to write to file", err1)
+				}
+			}
+		}
+
+	}
+}
 
 // RegisterSwaggerService add the WebService that provides the API documentation of all services
 // conform the Swagger documentation specifcation. (https://github.com/wordnik/swagger-core/wiki).
-func RegisterSwaggerService(config Config, wsContainer *restful.Container) {
+func RegisterSwaggerService(config Config, wsContainer *restful.Container) *SwaggerService {
 	sws := newSwaggerService(config)
-	ws := new(restful.WebService)
-	ws.Path(config.ApiPath)
-	ws.Produces(restful.MIME_JSON)
-	if config.DisableCORS {
-		ws.Filter(enableCORS)
-	}
-	ws.Route(ws.GET("/").To(sws.getListing))
-	ws.Route(ws.GET("/{a}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}/{g}").To(sws.getDeclarations))
-	LogInfo("[restful/swagger] listing is available at %v%v", config.WebServicesUrl, config.ApiPath)
-	wsContainer.Add(ws)
-
-	// Check paths for UI serving
-	if config.StaticHandler == nil && config.SwaggerFilePath != "" && config.SwaggerPath != "" {
-		swaggerPathSlash := config.SwaggerPath
-		// path must end with slash /
-		if "/" != config.SwaggerPath[len(config.SwaggerPath)-1:] {
-			LogInfo("[restful/swagger] use corrected SwaggerPath ; must end with slash (/)")
-			swaggerPathSlash += "/"
+	sws.WriteToFile()
+	if sws.config.OpenService == true {
+		ws := new(restful.WebService)
+		ws.Path(config.ApiPath)
+		ws.Produces(restful.MIME_JSON)
+		if config.DisableCORS {
+			ws.Filter(enableCORS)
 		}
+		ws.Route(ws.GET("/").To(sws.getListing))
+		ws.Route(ws.GET("/{a}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}/{c}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}/{c}/{d}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}").To(sws.getDeclarations))
+		ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}/{g}").To(sws.getDeclarations))
+		LogInfo("[restful/swagger] listing is available at %v%v", config.WebServicesUrl, config.ApiPath)
+		wsContainer.Add(ws)
 
-		LogInfo("[restful/swagger] %v%v is mapped to folder %v", config.WebServicesUrl, swaggerPathSlash, config.SwaggerFilePath)
-		wsContainer.Handle(swaggerPathSlash, http.StripPrefix(swaggerPathSlash, http.FileServer(http.Dir(config.SwaggerFilePath))))
+		// Check paths for UI serving
+		if config.StaticHandler == nil && config.SwaggerFilePath != "" && config.SwaggerPath != "" {
+			swaggerPathSlash := config.SwaggerPath
+			// path must end with slash /
+			if "/" != config.SwaggerPath[len(config.SwaggerPath)-1:] {
+				LogInfo("[restful/swagger] use corrected SwaggerPath ; must end with slash (/)")
+				swaggerPathSlash += "/"
+			}
 
-		//if we define a custom static handler use it
-	} else if config.StaticHandler != nil && config.SwaggerPath != "" {
-		swaggerPathSlash := config.SwaggerPath
-		// path must end with slash /
-		if "/" != config.SwaggerPath[len(config.SwaggerPath)-1:] {
-			LogInfo("[restful/swagger] use corrected SwaggerFilePath ; must end with slash (/)")
-			swaggerPathSlash += "/"
+			LogInfo("[restful/swagger] %v%v is mapped to folder %v", config.WebServicesUrl, swaggerPathSlash, config.SwaggerFilePath)
+			wsContainer.Handle(swaggerPathSlash, http.StripPrefix(swaggerPathSlash, http.FileServer(http.Dir(config.SwaggerFilePath))))
 
+			//if we define a custom static handler use it
+		} else if config.StaticHandler != nil && config.SwaggerPath != "" {
+			swaggerPathSlash := config.SwaggerPath
+			// path must end with slash /
+			if "/" != config.SwaggerPath[len(config.SwaggerPath)-1:] {
+				LogInfo("[restful/swagger] use corrected SwaggerFilePath ; must end with slash (/)")
+				swaggerPathSlash += "/"
+
+			}
+			LogInfo("[restful/swagger] %v%v is mapped to custom Handler %T", config.WebServicesUrl, swaggerPathSlash, config.StaticHandler)
+			wsContainer.Handle(swaggerPathSlash, config.StaticHandler)
+
+		} else {
+			LogInfo("[restful/swagger] Swagger(File)Path is empty ; no UI is served")
 		}
-		LogInfo("[restful/swagger] %v%v is mapped to custom Handler %T", config.WebServicesUrl, swaggerPathSlash, config.StaticHandler)
-		wsContainer.Handle(swaggerPathSlash, config.StaticHandler)
-
-	} else {
-		LogInfo("[restful/swagger] Swagger(File)Path is empty ; no UI is served")
 	}
+	return sws
 }
 
 func staticPathFromRoute(r restful.Route) string {
 	static := r.Path
 	bracket := strings.Index(static, "{")
-	if bracket <= 1 { // result cannot be empty
+	if bracket <= 1 {
+		// result cannot be empty
 		return static
 	}
 	if bracket != -1 {
@@ -139,20 +167,9 @@ func enableCORS(req *restful.Request, resp *restful.Response, chain *restful.Fil
 }
 
 func (sws SwaggerService) getListing(req *restful.Request, resp *restful.Response) {
-	listing := sws.produceListing()
-	resp.WriteAsJson(listing)
-}
-
-func (sws SwaggerService) produceListing() ResourceListing {
-	listing := ResourceListing{SwaggerVersion: swaggerVersion, ApiVersion: sws.config.ApiVersion, Info: sws.config.Info}
-	sws.apiDeclarationMap.Do(func(k string, v ApiDeclaration) {
-		ref := Resource{Path: k}
-		if len(v.Apis) > 0 { // use description of first (could still be empty)
-			ref.Description = v.Apis[0].Description
-		}
-		listing.Apis = append(listing.Apis, ref)
-	})
-	return listing
+	for _, listing := range sws.apiDeclarationMap.List {
+		resp.WriteAsJson(listing)
+	}
 }
 
 func (sws SwaggerService) getDeclarations(req *restful.Request, resp *restful.Response) {
@@ -191,15 +208,7 @@ func (sws SwaggerService) getDeclarations(req *restful.Request, resp *restful.Re
 	resp.WriteAsJson(decl)
 }
 
-func (sws SwaggerService) produceAllDeclarations() map[string]ApiDeclaration {
-	decls := map[string]ApiDeclaration{}
-	sws.apiDeclarationMap.Do(func(k string, v ApiDeclaration) {
-		decls[k] = v
-	})
-	return decls
-}
-
-func (sws SwaggerService) produceDeclarations(route string) (*ApiDeclaration, bool) {
+func (sws SwaggerService) produceDeclarations(route string) (*APIDefinition, bool) {
 	decl, ok := sws.apiDeclarationMap.At(route)
 	if !ok {
 		return nil, false
@@ -208,75 +217,10 @@ func (sws SwaggerService) produceDeclarations(route string) (*ApiDeclaration, bo
 	return &decl, true
 }
 
-// composeDeclaration uses all routes and parameters to create a ApiDeclaration
-func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix string) ApiDeclaration {
-	decl := ApiDeclaration{
-		SwaggerVersion: swaggerVersion,
-		BasePath:       sws.config.WebServicesUrl,
-		ResourcePath:   pathPrefix,
-		Models:         ModelList{},
-		ApiVersion:     ws.Version()}
-
-	// collect any path parameters
-	rootParams := []Parameter{}
-	for _, param := range ws.PathParameters() {
-		rootParams = append(rootParams, asSwaggerParameter(param.Data()))
-	}
-	// aggregate by path
-	pathToRoutes := newOrderedRouteMap()
-	for _, other := range ws.Routes() {
-		if strings.HasPrefix(other.Path, pathPrefix) {
-			if len(pathPrefix) > 1 && len(other.Path) > len(pathPrefix) && other.Path[len(pathPrefix)] != '/' {
-				continue
-			}
-			pathToRoutes.Add(other.Path, other)
-		}
-	}
-	pathToRoutes.Do(func(path string, routes []restful.Route) {
-		api := Api{Path: strings.TrimSuffix(withoutWildcard(path), "/"), Description: ws.Documentation()}
-		voidString := "void"
-		for _, route := range routes {
-			operation := Operation{
-				Method:  route.Method,
-				Summary: route.Doc,
-				Notes:   route.Notes,
-				// Type gets overwritten if there is a write sample
-				DataTypeFields:   DataTypeFields{Type: &voidString},
-				Parameters:       []Parameter{},
-				Nickname:         route.Operation,
-				ResponseMessages: composeResponseMessages(route, &decl, &sws.config)}
-
-			operation.Consumes = route.Consumes
-			operation.Produces = route.Produces
-
-			// share root params if any
-			for _, swparam := range rootParams {
-				operation.Parameters = append(operation.Parameters, swparam)
-			}
-			// route specific params
-			for _, param := range route.ParameterDocs {
-				operation.Parameters = append(operation.Parameters, asSwaggerParameter(param.Data()))
-			}
-
-			sws.addModelsFromRouteTo(&operation, route, &decl)
-			api.Operations = append(api.Operations, operation)
-		}
-		decl.Apis = append(decl.Apis, api)
-	})
-	return decl
-}
-
-func withoutWildcard(path string) string {
-	if strings.HasSuffix(path, ":*}") {
-		return path[0:len(path)-3] + "}"
-	}
-	return path
-}
-
-// composeResponseMessages takes the ResponseErrors (if any) and creates ResponseMessages from them.
-func composeResponseMessages(route restful.Route, decl *ApiDeclaration, config *Config) (messages []ResponseMessage) {
+func composeResponses(route restful.Route, decl *APIDefinition, config *Config) (res map[string]Response) {
+	response := make(map[string]Response)
 	if route.ResponseErrors == nil {
-		return messages
+		return res
 	}
 	// sort by code
 	codes := sort.IntSlice{}
@@ -286,32 +230,241 @@ func composeResponseMessages(route restful.Route, decl *ApiDeclaration, config *
 	codes.Sort()
 	for _, code := range codes {
 		each := route.ResponseErrors[code]
-		message := ResponseMessage{
-			Code:    code,
-			Message: each.Message,
-		}
+		message := Response{
+			Description: each.Message}
 		if each.Model != nil {
+			message.Schema = &Items{}
 			st := reflect.TypeOf(each.Model)
 			isCollection, st := detectCollectionType(st)
-			// collection cannot be in responsemodel
+			modelName := modelBuilder{Config: config}.keyFrom(st)
 			if !isCollection {
-				modelName := modelBuilder{}.keyFrom(st)
-				modelBuilder{Models: &decl.Models, Config: config}.addModel(st, "")
-				message.ResponseModel = modelName
+				if st.Kind() == reflect.Struct {
+					message.Schema.Ref = getModelName(modelName)
+					modelBuilder{Definitions: &decl.Definitions, Config: config}.addModel(st, "")
+				} else if st.Kind() == reflect.Map {
+					st = st.Elem()
+					if st.Kind() == reflect.Struct {
+						message.Schema.Type = "object"
+						message.Schema.AdditionalProperties = &Items{}
+						modelName = modelBuilder{Config: config}.keyFrom(st)
+						message.Schema.AdditionalProperties.Ref = getModelName(modelName)
+						modelBuilder{Definitions: &decl.Definitions, Config: config}.addModel(st, "")
+					} else {
+						message.Schema.Type = "object"
+						message.Schema.AdditionalProperties = &Items{}
+						modelName = modelBuilder{Config: config}.keyFrom(st)
+						message.Schema.AdditionalProperties.Type = getOtherName(modelName)
+						if getOtherName(modelName) == "integer" || getOtherName(modelName) == "number" {
+							message.Schema.AdditionalProperties.Format = getFormat(modelName)
+						}
+					}
+				} else {
+					message.Schema.Type = getOtherName(modelName)
+					if getOtherName(modelName) == "integer" || getOtherName(modelName) == "number" {
+						message.Schema.Format = getFormat(modelName)
+					}
+				}
+			} else {
+				if st.Kind() == reflect.Struct {
+					message.Schema.Type = "array"
+					message.Schema.Items = &Items{}
+					message.Schema.Items.Ref = getModelName(modelName)
+					modelBuilder{Definitions: &decl.Definitions, Config: config}.addModel(st, "")
+				} else {
+					message.Schema.Type = "array"
+					message.Schema.Items = &Items{}
+					message.Schema.Items.Type = getOtherName(modelName)
+					if getOtherName(modelName) == "integer" || getOtherName(modelName) == "number" {
+						message.Schema.Items.Format = getFormat(modelName)
+					}
+				}
 			}
 		}
-		messages = append(messages, message)
+		headers := map[string]*Items{}
+		for k, h := range each.Headers {
+			items := Items{
+				Description: h.Description,
+			}
+			switch h.Items.Type {
+			case TypeString, TypeNumber, TypeInteger, TypeBoolean, TypeArray:
+				items.Type = h.Items.Type
+			default:
+				continue
+			}
+			if h.Items.Format != "" {
+				items.Format = h.Format
+			}
+			if h.Items.Type == TypeArray {
+				items.Items = getItems(h.Items.Items)
+			}
+			headers[k] = &items
+		}
+		message.Headers = headers
+		response[strconv.Itoa(code)] = message
 	}
-	return
+	return response
 }
 
-// addModelsFromRoute takes any read or write sample from the Route and creates a Swagger model from it.
-func (sws SwaggerService) addModelsFromRouteTo(operation *Operation, route restful.Route, decl *ApiDeclaration) {
+func getItems(restfulItems *restful.Items) *Items {
+	if restfulItems == nil {
+		return nil
+	}
+	items := Items{}
+	switch restfulItems.Type {
+	case TypeString, TypeNumber, TypeInteger, TypeBoolean, TypeArray:
+		items.Type = restfulItems.Type
+	default:
+		return nil
+	}
+	if restfulItems.Format != "" {
+		items.Format = restfulItems.Format
+	}
+	if restfulItems.Type == TypeArray {
+		items.Items = getItems(restfulItems.Items)
+	}
+	return &items
+}
+
+func (sws SwaggerService) addModelsFromRouteTo(route restful.Route, decl *APIDefinition) {
 	if route.ReadSample != nil {
-		sws.addModelFromSampleTo(operation, false, route.ReadSample, &decl.Models)
+		sws.addModelFromSampleTo(route.ReadSample, &decl.Definitions)
 	}
 	if route.WriteSample != nil {
-		sws.addModelFromSampleTo(operation, true, route.WriteSample, &decl.Models)
+		sws.addModelFromSampleTo(route.WriteSample, &decl.Definitions)
+	}
+}
+
+// addModelFromSample creates and adds (or overwrites) a Model from a sample resource
+func (sws SwaggerService) addModelFromSampleTo(sample interface{}, items *map[string]*Items) {
+	mb := modelBuilder{Definitions: items, Config: &sws.config}
+	mb.addModel(reflect.TypeOf(sample), "")
+}
+
+func getOperation(route restful.Route) *Endpoint {
+	ep := &Endpoint{
+		Summary:     route.Doc,
+		Description: route.Notes,
+		OperationId: route.Operation,
+		Consumes:    route.Consumes,
+		Produces:    route.Produces,
+		Parameters:  Parameters{}}
+	if route.Metadata != nil && route.Metadata["tags"] != nil {
+		tags, ok := route.Metadata["tags"].([]string)
+		if !ok {
+			log.Print("invalid tags,tags must be a string slice")
+		} else {
+			ep.Tags = tags
+		}
+	}
+
+	return ep
+}
+
+func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix string) APIDefinition {
+	sws.config.Info.Version = ws.Version()
+	decl := APIDefinition{
+		Swagger:     swaggerVersion,
+		BasePath:    ws.RootPath(),
+		Paths:       map[string]*Path{},
+		Info:        sws.config.Info,
+		Definitions: map[string]*Items{}}
+
+	pathToRoutes := newOrderedRouteMap()
+	for _, other := range ws.Routes() {
+		if strings.HasPrefix(other.Path, ws.RootPath()) {
+			if len(ws.RootPath()) > 1 && len(other.Path) > len(ws.RootPath()) && other.Path[len(ws.RootPath())] != '/' {
+				continue
+			}
+			path := strings.TrimPrefix(other.Path, pathPrefix)
+			if ws.RootPath() == "" || ws.RootPath() == "/" {
+				path = other.Path
+			}
+			pathToRoutes.Add(path, other)
+		}
+	}
+	pathToRoutes.Do(func(path string, routes []restful.Route) {
+		for _, route := range routes {
+			op := buildEndpoint(route, decl, sws)
+			switch route.Method {
+			case "GET":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Get: &Endpoint{}}
+					decl.Paths[path].Get = op
+				} else {
+					decl.Paths[path].Get = op
+				}
+			case "POST":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Post: &Endpoint{}}
+					decl.Paths[path].Post = op
+				} else {
+					decl.Paths[path].Post = op
+				}
+			case "PUT":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Put: &Endpoint{}}
+					decl.Paths[path].Put = op
+				} else {
+					decl.Paths[path].Put = op
+				}
+			case "DELETE":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Delete: &Endpoint{}}
+					decl.Paths[path].Delete = op
+				} else {
+					decl.Paths[path].Delete = op
+				}
+			case "PATCH":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Patch: &Endpoint{}}
+					decl.Paths[path].Patch = op
+				} else {
+					decl.Paths[path].Patch = op
+				}
+			case "OPTIONS":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Options: &Endpoint{}}
+					decl.Paths[path].Options = op
+				} else {
+					decl.Paths[path].Options = op
+				}
+			case "HEAD":
+				if decl.Paths[path] == nil {
+					decl.Paths[path] = &Path{Head: &Endpoint{}}
+					decl.Paths[path].Head = op
+				} else {
+					decl.Paths[path].Head = op
+				}
+			}
+		}
+
+	})
+	return decl
+}
+func buildEndpoint(route restful.Route, decl APIDefinition, sws SwaggerService) *Endpoint {
+	endpoint := getOperation(route)
+	for _, param := range route.ParameterDocs {
+		item := asSwaggerParameter(param.Data())
+		optimizeParameter(item, param.Data(), route.ReadSample, &sws.config)
+		endpoint.Parameters = append(endpoint.Parameters, item)
+	}
+	endpoint.Responses = composeResponses(route, &decl, &sws.config)
+	sws.addModelsFromRouteTo(route, &decl)
+	return endpoint
+}
+func optimizeParameter(item *Items, param restful.ParameterData, readSample interface{}, config *Config) {
+	if param.Kind == 2 {
+		if reflect.TypeOf(readSample).Kind() == reflect.Slice || reflect.TypeOf(readSample).Kind() == reflect.Array {
+			item.Type = "array"
+			dataType := modelBuilder{Config: config}.keyFrom(reflect.TypeOf(readSample).Elem())
+			item.Items = &Items{Ref: getModelName(dataType)}
+		} else {
+			item.Type = nil
+			item.Schema = &Items{Ref: getModelName(param.DataType)}
+		}
+	}
+	if param.DataFormat == "" {
+		item.Format = nil
 	}
 }
 
@@ -319,11 +472,15 @@ func detectCollectionType(st reflect.Type) (bool, reflect.Type) {
 	isCollection := false
 	if st.Kind() == reflect.Slice || st.Kind() == reflect.Array {
 		st = st.Elem()
+		if st.Kind() == reflect.Ptr {
+			st = st.Elem()
+		}
 		isCollection = true
 	} else {
 		if st.Kind() == reflect.Ptr {
-			if st.Elem().Kind() == reflect.Slice || st.Elem().Kind() == reflect.Array {
-				st = st.Elem().Elem()
+			st = st.Elem()
+			if st.Kind() == reflect.Slice || st.Kind() == reflect.Array {
+				st = st.Elem()
 				isCollection = true
 			}
 		}
@@ -331,29 +488,14 @@ func detectCollectionType(st reflect.Type) (bool, reflect.Type) {
 	return isCollection, st
 }
 
-// addModelFromSample creates and adds (or overwrites) a Model from a sample resource
-func (sws SwaggerService) addModelFromSampleTo(operation *Operation, isResponse bool, sample interface{}, models *ModelList) {
-	mb := modelBuilder{Models: models, Config: &sws.config}
-	if isResponse {
-		sampleType, items := asDataType(sample, &sws.config)
-		operation.Type = sampleType
-		operation.Items = items
-	}
-	mb.addModelFrom(sample)
-}
-
-func asSwaggerParameter(param restful.ParameterData) Parameter {
-	return Parameter{
-		DataTypeFields: DataTypeFields{
-			Type:         &param.DataType,
-			Format:       asFormat(param.DataType, param.DataFormat),
-			DefaultValue: Special(param.DefaultValue),
-		},
+func asSwaggerParameter(param restful.ParameterData) *Items {
+	return &Items{
 		Name:        param.Name,
+		In:          asParamType(param.Kind),
 		Description: param.Description,
-		ParamType:   asParamType(param.Kind),
-
-		Required: param.Required}
+		Required:    param.Required,
+		Type:        getOtherName(param.DataType),
+		Format:      asFormat(param.DataType, param.DataFormat)}
 }
 
 // Between 1..7 path parameters is supported
@@ -393,7 +535,7 @@ func composeRootPath(req *restful.Request) string {
 
 func asFormat(dataType string, dataFormat string) string {
 	if dataFormat != "" {
-		return dataFormat
+		return getFormat(dataFormat)
 	}
 	return "" // TODO
 }
@@ -414,30 +556,15 @@ func asParamType(kind int) string {
 	return ""
 }
 
-func asDataType(any interface{}, config *Config) (*string, *Item) {
-	// If it's not a collection, return the suggested model name
-	st := reflect.TypeOf(any)
-	isCollection, st := detectCollectionType(st)
-	modelName := modelBuilder{}.keyFrom(st)
-	// if it's not a collection we are done
-	if !isCollection {
-		return &modelName, nil
+//Get Schema information
+func (sws *SwaggerService) GetSchemaInfoList() ([]string, error) {
+	var result []string
+	for _, listing := range sws.apiDeclarationMap.List {
+		list, err := yaml.Marshal(listing)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, string(list))
 	}
-
-	// XXX: This is not very elegant
-	// We create an Item object referring to the given model
-	models := ModelList{}
-	mb := modelBuilder{Models: &models, Config: config}
-	mb.addModelFrom(any)
-
-	elemTypeName := mb.getElementTypeName(modelName, "", st)
-	item := new(Item)
-	if mb.isPrimitiveType(elemTypeName) {
-		mapped := mb.jsonSchemaType(elemTypeName)
-		item.Type = &mapped
-	} else {
-		item.Ref = &elemTypeName
-	}
-	tmp := "array"
-	return &tmp, item
+	return result, nil
 }
