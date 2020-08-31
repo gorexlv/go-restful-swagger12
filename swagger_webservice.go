@@ -6,14 +6,15 @@ import (
 
 	"github.com/emicklei/go-restful/v3"
 	// "github.com/emicklei/hopwatch"
-	"github.com/emicklei/go-restful/v3/log"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/emicklei/go-restful/v3/log"
+	"gopkg.in/yaml.v2"
 )
 
 // const
@@ -213,7 +214,8 @@ func (sws SwaggerService) produceDeclarations(route string) (*APIDefinition, boo
 	if !ok {
 		return nil, false
 	}
-	decl.BasePath = sws.config.WebServicesUrl
+	// decl.BasePath = sws.config.WebServicesUrl
+	decl.BasePath = route
 	return &decl, true
 }
 
