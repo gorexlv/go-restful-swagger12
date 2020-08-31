@@ -2,17 +2,11 @@ package swagger
 
 import (
 	"encoding/json"
-<<<<<<< HEAD
 	"testing"
 
-	"github.com/emicklei/go-restful-swagger12/test_package"
 	"github.com/emicklei/go-restful/v3"
-=======
-	"github.com/emicklei/go-restful"
 	"os"
 	"strings"
-	"testing"
->>>>>>> swagger20/master
 )
 
 //测试Info
@@ -84,7 +78,7 @@ func TestServiceToApi(t *testing.T) {
 		t.Errorf("got %v want %v", len(decl.Paths), 4)
 	}
 	pathOrder := ""
-	for path, _ := range decl.Paths {
+	for path := range decl.Paths {
 		pathOrder += path
 	}
 
@@ -176,7 +170,7 @@ func TestAddModel(t *testing.T) {
 		t.Fatal("wrong model type  " + model.Type.(string))
 	}
 	str := ""
-	for key, _ := range model.Properties {
+	for key := range model.Properties {
 		str = str + key
 	}
 	if !strings.Contains(str, "Code") {
@@ -218,7 +212,7 @@ func TestAddModel(t *testing.T) {
 		t.Fatal("wrong model User type  " + model1.Type.(string))
 	}
 	str1 := ""
-	for key, _ := range model1.Properties {
+	for key := range model1.Properties {
 		str1 = str1 + key
 	}
 	if !strings.Contains(str1, "Id") {
@@ -242,7 +236,7 @@ func TestAddModel(t *testing.T) {
 		t.Fatal("wrong model TestItem type  " + model2.Type.(string))
 	}
 	str2 := ""
-	for key, _ := range model2.Properties {
+	for key := range model2.Properties {
 		str2 = str2 + key
 	}
 	if !strings.Contains(str2, "Id") {
