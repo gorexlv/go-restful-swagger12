@@ -117,6 +117,10 @@ func (b modelBuilder) addModel(st reflect.Type, nameOverride string) *Items {
 		if fieldDesc := b.descOfField(field); fieldDesc != "" {
 			sm.Properties[field.Name].Description = fieldDesc
 		}
+
+		if fieldEnums := b.enumsOfField(field); len(fieldEnums) > 0 {
+			sm.Properties[field.Name].Enum = fieldEnums
+		}
 	}
 	(*b.Definitions)[name] = &sm
 	return &sm
@@ -192,4 +196,11 @@ func (b modelBuilder) descOfField(field reflect.StructField) string {
 		return tag
 	}
 	return ""
+}
+
+func (b modelBuilder) enumsOfField(field reflect.StructField) []string {
+	if tag := field.Tag.Get("enum"); tag != "" {
+		return strings.Split(tag, ",")
+	}
+	return []string{}
 }

@@ -1,4 +1,4 @@
-module github.com/go-chassis/go-restful-swagger20
+module github.com/gorexlv/go-restful-swagger20
 
 require (
 	github.com/emicklei/go-restful/v3 v3.3.0
