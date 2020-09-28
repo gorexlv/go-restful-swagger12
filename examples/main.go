@@ -6,12 +6,13 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 
 	"fmt"
-	"github.com/go-chassis/go-restful-swagger20"
 	"os"
 	"path/filepath"
+
+	swagger "github.com/go-chassis/go-restful-swagger20"
 )
 
 type Book struct {
@@ -25,22 +26,21 @@ type ID string
 type Age int64
 
 type Student struct {
-	Id   ID  `swag:"string"`
+	Id   ID `swag:"string"`
 	Age  Age
 	Name string
 }
 
-func modelTypeNameHandler(st reflect.Type) (string, bool)  {
+func modelTypeNameHandler(st reflect.Type) (string, bool) {
 	key := st.String()
 
 	if len(st.Name()) == 0 {
 		key = strings.Replace(key, "[]", "", -1)
 	}
 
-	if key=="main.Age" {
+	if key == "main.Age" {
 		return "number", true
 	}
-
 
 	return key, true
 }
@@ -54,7 +54,7 @@ func main() {
 	ws.Route(ws.GET("/{medium}").To(getBookById).
 		Doc("Search a books").
 		Param(ws.PathParameter("medium", "digital or paperback").DataType("string")).
-		Param(ws.QueryParameter("language", "en,nl,de").DataType("string")).Metadata("tags",[]string{"users","desc"}).
+		Param(ws.QueryParameter("language", "en,nl,de").DataType("string")).Metadata("tags", []string{"users", "desc"}).
 		Param(ws.HeaderParameter("If-Modified-Since", "last known timestamp").DataType("string").DataFormat("datetime")).
 		Returns(200, "haha", Book{}))
 
@@ -82,9 +82,9 @@ func main() {
 		WebServicesUrl: "http://localhost:8080",
 		ApiPath:        "/apidocs.json",
 		//FileStyle:	"json",
-		OpenService: true,
-		SwaggerPath: "/apidocs/",
-		OutFilePath: filepath.Join(val, "api.yaml"),
+		OpenService:          true,
+		SwaggerPath:          "/apidocs/",
+		OutFilePath:          filepath.Join(val, "api.yaml"),
 		ModelTypeNameHandler: modelTypeNameHandler}
 
 	config.Info.Description = "This is a sample server Book server"

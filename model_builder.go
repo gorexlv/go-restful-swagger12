@@ -41,6 +41,7 @@ func (b modelBuilder) addModel(st reflect.Type, nameOverride string) *Items {
 		b.addModel(st.Elem(), "")
 		return &sm
 	}
+
 	// check for structure or primitive type
 	if st.Kind() != reflect.Struct {
 		return &sm
@@ -53,12 +54,11 @@ func (b modelBuilder) addModel(st reflect.Type, nameOverride string) *Items {
 			continue
 		} else {
 			field.Name = b.nameOfField(field)
-
 		}
 		sm.Properties[field.Name] = &Items{}
 		ft := field.Type
 		isCollection, ft := detectCollectionType(ft)
-		fieldName := modelBuilder{Config:b.Config}.keyFrom(ft)
+		fieldName := modelBuilder{Config: b.Config}.keyFrom(ft)
 		if !isCollection {
 			if ft.Kind() == reflect.Struct {
 				if fieldName == "time.Time" {
@@ -77,19 +77,18 @@ func (b modelBuilder) addModel(st reflect.Type, nameOverride string) *Items {
 				if ft.Kind() == reflect.Struct {
 					sm.Properties[field.Name].Type = "object"
 					sm.Properties[field.Name].AdditionalProperties = &Items{}
-					modelName = modelBuilder{Config:b.Config}.keyFrom(ft)
+					modelName = modelBuilder{Config: b.Config}.keyFrom(ft)
 					sm.Properties[field.Name].AdditionalProperties.Ref = getModelName(modelName)
 					b.addModel(ft, "")
 				} else {
 					sm.Properties[field.Name].Type = "object"
 					sm.Properties[field.Name].AdditionalProperties = &Items{}
-					modelName = modelBuilder{Config:b.Config}.keyFrom(ft)
+					modelName = modelBuilder{Config: b.Config}.keyFrom(ft)
 					sm.Properties[field.Name].AdditionalProperties.Type = getOtherName(modelName)
 					if getOtherName(modelName) == "integer" || getOtherName(modelName) == "number" {
 						sm.Properties[field.Name].AdditionalProperties.Format = getFormat(modelName)
 					}
 				}
-
 			} else {
 				sm.Properties[field.Name].Type = getOtherName(fieldName)
 				if getOtherName(fieldName) == "integer" || getOtherName(fieldName) == "number" {
@@ -111,8 +110,12 @@ func (b modelBuilder) addModel(st reflect.Type, nameOverride string) *Items {
 				}
 			}
 		}
-		if b.typeOfField(field) != "" {
-			sm.Properties[field.Name].Type = b.typeOfField(field)
+		if fieldType := b.typeOfField(field); fieldType != "" {
+			sm.Properties[field.Name].Type = fieldType
+		}
+
+		if fieldDesc := b.descOfField(field); fieldDesc != "" {
+			sm.Properties[field.Name].Description = fieldDesc
 		}
 	}
 	(*b.Definitions)[name] = &sm
@@ -169,7 +172,6 @@ func (b modelBuilder) nameOfField(field reflect.StructField) string {
 	return field.Name
 }
 
-
 // typeOfField returns the type of the field as it should appear in JSON format
 // An empty string indicates that this field is not part of the JSON representation
 func (b modelBuilder) typeOfField(field reflect.StructField) string {
@@ -181,6 +183,13 @@ func (b modelBuilder) typeOfField(field reflect.StructField) string {
 		} else if s[0] != "" {
 			return s[0]
 		}
+	}
+	return ""
+}
+
+func (b modelBuilder) descOfField(field reflect.StructField) string {
+	if tag := field.Tag.Get("description"); tag != "" {
+		return tag
 	}
 	return ""
 }

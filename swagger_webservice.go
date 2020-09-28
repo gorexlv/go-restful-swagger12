@@ -3,15 +3,16 @@ package swagger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful/log"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/emicklei/go-restful/v3"
+	"github.com/emicklei/go-restful/v3/log"
+	"gopkg.in/yaml.v2"
 )
 
 // const

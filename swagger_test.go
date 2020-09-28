@@ -2,10 +2,12 @@ package swagger
 
 import (
 	"encoding/json"
-	"github.com/emicklei/go-restful"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/emicklei/go-restful/v3"
 )
 
 //测试Info
@@ -97,15 +99,17 @@ type item struct {
 	itemName string `json:"name"`
 }
 type TestItem struct {
-	Id, Name string
+	Id   string `json:"Id" desc:"id of item"`
+	Name string `json:"Name" desc:"name of item"`
 }
 type User struct {
-	Id, Name string
+	Id   string `json:"Id" desc:"id of user"`
+	Name string `json:"Name" desc:"name of user"`
 }
 type Responses struct {
-	Code  int
-	Users *[]User
-	Items *[]TestItem
+	Code  int         `json:"Code" desc:"response code"`
+	Users *[]User     `json:"Users" desc:"user list"`
+	Items *[]TestItem `json:"Items" desc:"item list"`
 }
 
 //测试responses
@@ -203,6 +207,8 @@ func TestAddModel(t *testing.T) {
 		t.Fatal("wrong Items Ref:" + model.Properties["Items"].Items.Ref)
 	}
 
+	fmt.Printf("model => %#v\n", model)
+
 	model1, ok1 := atMap("User", &api.Definitions)
 	if !ok1 {
 		t.Fatal("missing User model")
@@ -227,6 +233,8 @@ func TestAddModel(t *testing.T) {
 		t.Fatal("wrong User Name type:" + model1.Properties["Name"].Type.(string))
 	}
 
+	fmt.Printf("model1 => %+v\n", model1)
+
 	model2, ok2 := atMap("TestItem", &api.Definitions)
 	if !ok2 {
 		t.Fatal("missing TestItem model")
@@ -250,6 +258,8 @@ func TestAddModel(t *testing.T) {
 	if model2.Properties["Name"].Type != "string" {
 		t.Fatal("wrong TestItem Name type:" + model2.Properties["Name"].Type.(string))
 	}
+
+	fmt.Printf("model2 => %#v\n", model2.Properties["Name"].Description)
 }
 
 //测试将openapi协议以json形式保存在本地

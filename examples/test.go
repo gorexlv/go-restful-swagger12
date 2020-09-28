@@ -4,9 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/emicklei/go-restful"
-	"github.com/go-chassis/go-restful-swagger20"
 	"os"
+
+	"github.com/emicklei/go-restful/v3"
+	swagger "github.com/go-chassis/go-restful-swagger20"
 )
 
 // This example is functionally the same as the example in restful-user-resource.go

@@ -12,7 +12,7 @@ func TestSampleToModelAsJson(t *testing.T) {
     "properties": {
        "id": {
          "type": "string"
-     },
+       },
        "items": {
          "type": "array",
          "items": {

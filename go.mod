@@ -1,7 +1,8 @@
 module github.com/go-chassis/go-restful-swagger20
 
 require (
-	github.com/emicklei/go-restful v2.12.0+incompatible
+	github.com/emicklei/go-restful/v3 v3.3.0
+
 
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
