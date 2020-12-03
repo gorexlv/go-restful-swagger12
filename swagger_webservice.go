@@ -39,6 +39,8 @@ func newSwaggerService(config Config) *SwaggerService {
 		rootPath := each.RootPath()
 		// skip the api service itself
 		if rootPath != config.ApiPath {
+			fmt.Printf("each.RootPath() = %v\n", each.RootPath())
+			fmt.Printf("sws.composeDeclaration(each, each.RootPath()) = %v\n", sws.composeDeclaration(each, each.RootPath()))
 			sws.apiDeclarationMap.Put(each.RootPath(), sws.composeDeclaration(each, each.RootPath()))
 		}
 	}
@@ -212,7 +214,6 @@ func (sws SwaggerService) produceDeclarations(route string) (*APIDefinition, boo
 	if !ok {
 		return nil, false
 	}
-	decl.BasePath = sws.config.WebServicesUrl
 	return &decl, true
 }
 
@@ -363,7 +364,8 @@ func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix 
 	sws.config.Info.Version = ws.Version()
 	decl := APIDefinition{
 		Swagger:     swaggerVersion,
-		BasePath:    ws.RootPath(),
+		//BasePath:    ws.RootPath(),
+		BasePath: pathPrefix,
 		Paths:       map[string]*Path{},
 		Info:        sws.config.Info,
 		Definitions: map[string]*Items{}}
