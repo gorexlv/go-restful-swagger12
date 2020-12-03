@@ -168,9 +168,19 @@ func enableCORS(req *restful.Request, resp *restful.Response, chain *restful.Fil
 }
 
 func (sws SwaggerService) getListing(req *restful.Request, resp *restful.Response) {
+	var apiDefinition APIDefinition
+	//apiDefinition.BasePath = "/api/v1"
+	apiDefinition.Swagger = "2.0"
+	apiDefinition.Paths = make(map[string]*Path, 0)
+
 	for _, listing := range sws.apiDeclarationMap.List {
-		resp.WriteAsJson(listing)
+		//resp.WriteAsJson(listing)
+		for pathName, path := range listing.Paths {
+			apiDefinition.Paths[listing.BasePath+pathName] = path
+		}
 	}
+
+	resp.WriteAsJson(apiDefinition)
 }
 
 func (sws SwaggerService) getDeclarations(req *restful.Request, resp *restful.Response) {
@@ -368,7 +378,17 @@ func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix 
 		BasePath: pathPrefix,
 		Paths:       map[string]*Path{},
 		Info:        sws.config.Info,
-		Definitions: map[string]*Items{}}
+		Definitions: map[string]*Items{},
+		Tags: []Tag{},
+	}
+
+
+	var tag = ws.RootPath()
+	if ws.Documentation() != "" {
+		tag = ws.Documentation()
+	}
+
+	decl.Tags = append(decl.Tags, Tag{Name:tag})
 
 	pathToRoutes := newOrderedRouteMap()
 	for _, other := range ws.Routes() {
@@ -386,6 +406,7 @@ func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix 
 	pathToRoutes.Do(func(path string, routes []restful.Route) {
 		for _, route := range routes {
 			op := buildEndpoint(route, decl, sws)
+			op.Tags = []string{tag}
 			switch route.Method {
 			case "GET":
 				if decl.Paths[path] == nil {

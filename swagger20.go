@@ -3,6 +3,10 @@
 package swagger
 
 const swaggerVersion = "2.0"
+type Tag struct {
+	Name string `json:"name"`
+	Description string `json:"description"`
+}
 
 //Swagger Object
 type APIDefinition struct {
@@ -15,6 +19,7 @@ type APIDefinition struct {
 	Paths       map[string]*Path  `yaml:"paths" json:"paths"`
 	Definitions map[string]*Items `yaml:"definitions,omitempty" json:"definitions,omitempty"`
 	Parameters  map[string]*Items `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Tags []Tag `yaml:"tags" json:"tags"`
 }
 type Info struct {
 	Title       string `yaml:"title" json:"title"`
