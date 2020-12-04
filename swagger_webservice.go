@@ -24,6 +24,7 @@ const (
 	TypeArray   = "array"
 )
 
+// SwaggerService represents Swagger Service
 type SwaggerService struct {
 	config            Config
 	apiDeclarationMap *ApiDeclarationList
@@ -39,8 +40,6 @@ func newSwaggerService(config Config) *SwaggerService {
 		rootPath := each.RootPath()
 		// skip the api service itself
 		if rootPath != config.ApiPath {
-			fmt.Printf("each.RootPath() = %v\n", each.RootPath())
-			fmt.Printf("sws.composeDeclaration(each, each.RootPath()) = %v\n", sws.composeDeclaration(each, each.RootPath()))
 			sws.apiDeclarationMap.Put(each.RootPath(), sws.composeDeclaration(each, each.RootPath()))
 		}
 	}
@@ -63,6 +62,8 @@ var LogInfo = func(format string, v ...interface{}) {
 func InstallSwaggerService(aSwaggerConfig Config) {
 	RegisterSwaggerService(aSwaggerConfig, restful.DefaultContainer)
 }
+
+// WriteToFile write swagger definitions to json/yaml file
 func (sws SwaggerService) WriteToFile() {
 	for _, listing := range sws.apiDeclarationMap.List {
 		if sws.config.FileStyle == "json" {
@@ -172,11 +173,16 @@ func (sws SwaggerService) getListing(req *restful.Request, resp *restful.Respons
 	//apiDefinition.BasePath = "/api/v1"
 	apiDefinition.Swagger = "2.0"
 	apiDefinition.Paths = make(map[string]*Path, 0)
+	apiDefinition.Definitions = make(map[string]*Items, 0)
 
 	for _, listing := range sws.apiDeclarationMap.List {
 		//resp.WriteAsJson(listing)
 		for pathName, path := range listing.Paths {
 			apiDefinition.Paths[listing.BasePath+pathName] = path
+		}
+
+		for defName, definition := range listing.Definitions {
+			apiDefinition.Definitions[defName] = definition
 		}
 	}
 
@@ -354,7 +360,7 @@ func getOperation(route restful.Route) *Endpoint {
 	ep := &Endpoint{
 		Summary:     route.Doc,
 		Description: route.Notes,
-		OperationId: route.Operation,
+		OperationID: route.Operation,
 		Consumes:    route.Consumes,
 		Produces:    route.Produces,
 		Parameters:  Parameters{}}
@@ -373,22 +379,21 @@ func getOperation(route restful.Route) *Endpoint {
 func (sws SwaggerService) composeDeclaration(ws *restful.WebService, pathPrefix string) APIDefinition {
 	sws.config.Info.Version = ws.Version()
 	decl := APIDefinition{
-		Swagger:     swaggerVersion,
+		Swagger: swaggerVersion,
 		//BasePath:    ws.RootPath(),
-		BasePath: pathPrefix,
+		BasePath:    pathPrefix,
 		Paths:       map[string]*Path{},
 		Info:        sws.config.Info,
 		Definitions: map[string]*Items{},
-		Tags: []Tag{},
+		Tags:        []Tag{},
 	}
-
 
 	var tag = ws.RootPath()
 	if ws.Documentation() != "" {
 		tag = ws.Documentation()
 	}
 
-	decl.Tags = append(decl.Tags, Tag{Name:tag})
+	decl.Tags = append(decl.Tags, Tag{Name: tag})
 
 	pathToRoutes := newOrderedRouteMap()
 	for _, other := range ws.Routes() {
@@ -578,7 +583,7 @@ func asParamType(kind int) string {
 	return ""
 }
 
-//Get Schema information
+//GetSchemaInfoList returns Schema information
 func (sws *SwaggerService) GetSchemaInfoList() ([]string, error) {
 	var result []string
 	for _, listing := range sws.apiDeclarationMap.List {

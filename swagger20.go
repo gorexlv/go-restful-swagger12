@@ -3,12 +3,14 @@
 package swagger
 
 const swaggerVersion = "2.0"
+
+// Tag represents Tag information
 type Tag struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
-//Swagger Object
+// APIDefinition Swagger Object
 type APIDefinition struct {
 	Swagger     string            `yaml:"swagger" json:"swagger"`
 	Info        Info              `yaml:"info" json:"info"`
@@ -19,8 +21,10 @@ type APIDefinition struct {
 	Paths       map[string]*Path  `yaml:"paths" json:"paths"`
 	Definitions map[string]*Items `yaml:"definitions,omitempty" json:"definitions,omitempty"`
 	Parameters  map[string]*Items `yaml:"parameters,omitempty" json:"parameters,omitempty"`
-	Tags []Tag `yaml:"tags" json:"tags"`
+	Tags        []Tag             `yaml:"tags" json:"tags"`
 }
+
+// Info represents information of API definition
 type Info struct {
 	Title       string `yaml:"title" json:"title"`
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
@@ -54,7 +58,7 @@ type Endpoint struct {
 	Summary     string              `yaml:"summary,omitempty" json:"summary,omitempty"`
 	Description string              `yaml:"description,omitempty" json:"description,omitempty"`
 	Tags        []string            `yaml:"tags,omitempty" json:"tags,omitempty"`
-	OperationId string              `yaml:"operationId,omitempty" json:"operationId,omitempty"`
+	OperationID string              `yaml:"operationId,omitempty" json:"operationId,omitempty"`
 	Parameters  Parameters          `yaml:"parameters,omitempty" json:"parameters,omitempty"`
 	Consumes    []string            `yaml:"consumes,omitempty" json:"consumes,omitempty"`
 	Produces    []string            `yaml:"produces,omitempty" json:"produces,omitempty"`
